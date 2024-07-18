@@ -76,6 +76,43 @@ tm_player_bio <- function(player_urls) {
     return(a)
   }
 
+
+# Extract family relations
+      additional_data <- player_page %>% 
+        rvest::html_nodes(".tm-player-additional-data .content") %>% 
+        rvest::html_text()
+      
+      if (length(additional_data) > 0) {
+        family_relations <- stringr::str_extract_all(additional_data, "(?<=ist der )\\w+(?= von)")[[1]]
+        family_members <- stringr::str_extract_all(additional_data, "(?<=von ).*?(?=\\()")[[1]]
+        
+        family_members <- stringr::str_trim(family_members)
+        
+        for (i in seq_along(family_relations)) {
+          relation <- family_relations[i]
+          member <- family_members[i]
+          a <- rbind(a, data.frame(X1 = paste0("family_", relation), X2 = member))
+        }
+      }
+
+      a <- a %>%
+        dplyr::mutate(player_name = player_name) %>%
+        tidyr::pivot_wider(names_from = .data[["X1"]], values_from = .data[["X2"]]) %>%
+        janitor::clean_names() %>%
+        dplyr::mutate(player_valuation = .convert_value_to_numeric(euro_value = .data[["player_valuation"]]),
+                      max_player_valuation = .convert_value_to_numeric(euro_value = .data[["max_player_valuation"]]),
+                      max_player_valuation_date = .tm_fix_dates(dirty_dates = .data[["max_player_valuation_date"]])) %>%
+        dplyr::mutate(URL = player_url)
+    } else {
+      a <- data.frame()
+    }
+
+    return(a)
+  }
+
+
+
+                                      
   # create the progress bar with a progress function.
   pb <- progress::progress_bar$new(total = length(player_urls))
 
